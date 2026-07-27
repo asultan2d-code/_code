@@ -9,7 +9,6 @@ public static partial class Pools
 	public static TimerCustom NewTimer(Node parent, float waitTime, Action onTimer, bool oneShot)
 	{
 		TimerCustom timer = timerPool.Get(parent);
-		timer.IsInPool = false;
 		timer.WaitTime = waitTime;
 		timer.OneShot = oneShot;
 		timer.OnTimerAction = oneShot ? () =>
@@ -20,22 +19,14 @@ public static partial class Pools
 			}
 			finally
 			{
-				RemoveTimer(timer);
+				Remove(timer);
 			}
 		} : onTimer;
 		timer.Timeout += timer.OnTimerAction;
 		timer.Start();
 		return timer;
 	}
-	public static void RemoveTimer(TimerCustom timer)
-	{
-		if (timer.IsInPool) return;
-		timer.Stop();
-		timer.IsInPool = true;
-		timer.Timeout -= timer.OnTimerAction;
-		timer.OnTimerAction = null;
-		timerPool.Return(timer);
-	}
+	public static void Remove(TimerCustom timer) => timerPool.Return(timer);
 	private static Pool<TimerCustom> timerPool = new();
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
     public static void LoadSound(string key, string path)
@@ -50,41 +41,28 @@ public static partial class Pools
 			return null;
 		}
 		Audio2D audio = audio2DPool.Get(parent);
-		audio.IsInPool = false;
 		audio.Stream = stream;
 		audio.VolumeDb = volume;
         audio.PitchScale = pitch;
-		audio.OnFinishAction = () => RemoveAudio(audio);
+		audio.OnFinishAction = () => Remove(audio);
 		audio.Finished += audio.OnFinishAction;
 		audio.Play();
 		return audio;
 	}
-	public static void RemoveAudio(Audio2D audio)
-	{
-		if (audio.IsInPool) return;
-		audio.Stop();
-		audio.IsInPool = true;
-		audio.Finished -= audio.OnFinishAction;
-		audio.OnFinishAction = null;
-		audio2DPool.Return(audio);
-	}
+	public static void Remove(Audio2D audio) => audio2DPool.Return(audio);
 	private static Pool<Audio2D> audio2DPool = new();
     private static Dictionary<string, AudioStream> soundsPool = [];
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-	public static LightOccluder2D NewOccluder(Node parent, Vector2[] polygons)
+	public static Occluder2D NewOccluder(Node parent, Vector2[] polygons)
 	{
-		LightOccluder2D occluder = occluderPool.Get(parent);
+		Occluder2D occluder = occluderPool.Get(parent);
 		occluder.Occluder ??= new();
 		occluder.Occluder.Polygon = polygons;
 		return occluder;
 	}
-	public static void RemoveOccluder(LightOccluder2D occluder)
-	{
-		if (occluder.Occluder.Polygon != null)
-			occluder.Occluder.Polygon = null;
-		occluderPool.Return(occluder);
-	}
-	private static Pool<LightOccluder2D> occluderPool = new();
+	public static void Remove(Occluder2D occluder) => occluderPool.Return(occluder);
+	private static Pool<Occluder2D> occluderPool = new();
+}
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
@@ -99,4 +77,3 @@ public static partial class Pools
 	private static Pool<Creature> _creaturePool = new(() => _creatureScene.Instantiate<Creature>());
 */// ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 
-}

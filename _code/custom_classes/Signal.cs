@@ -23,10 +23,3 @@ public class Signal<EventContext>
     public void UnsubscribeAll() => handlers.Clear();
     public int GetSubsCount() => handlers.Count;
 }
-// ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-public class EventContext
-{
-	public EventContext()
-	{
-	}
-}

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Godot;
 namespace Game;
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-public class Pool<T> where T : class, new()
+public class Pool<T> where T : class, IPoolable, new()
 {
     public Pool(Func<T> _factory = null, int size = 0, Signal<EventContext> signal = null)
     {
@@ -15,6 +15,7 @@ public class Pool<T> where T : class, new()
 	public T Get(Node parent = null)
 	{
 		T obj = _pool.Count > 0 ? _pool.Dequeue() : factory();
+		obj.IsInPool = false;
 		if (obj is Node node)
 		{
 			if (node.ProcessMode != Node.ProcessModeEnum.Inherit)
@@ -25,13 +26,14 @@ public class Pool<T> where T : class, new()
 	}
 	public void Return(T obj)
 	{
+		if (obj.IsInPool) return;
+		obj.IsInPool = true;
+		obj.Clear();
 		if (obj is Node node)
 		{
 			node.GetParent()?.RemoveChild(node);
 			node.ProcessMode = Node.ProcessModeEnum.Disabled;
 		}
-		if (obj is IHasClear has)
-			has.Clear();
 		_pool.Enqueue(obj);
 	}
 	public void TrimExcess(EventContext _)
@@ -50,7 +52,8 @@ public class Pool<T> where T : class, new()
 	private int limit = 0;
 }
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-public interface IHasClear
+public interface IPoolable
 {
+    bool IsInPool { get; set; }
 	void Clear();
 }
