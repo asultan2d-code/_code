@@ -29,10 +29,8 @@ public static partial class Pools
 	public static void Remove(TimerCustom timer) => timerPool.Return(timer);
 	private static Pool<TimerCustom> timerPool = new();
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-    public static void LoadSound(string key, string path)
-    {
-        soundsPool[key] = GD.Load<AudioStream>(path);
-    }
+// добавить не удаление для лууп аудио
+// удаление с таймером, затухание
 	public static Audio2D PlayAudio2D(Node parent, string key, float volume = 0f, float pitch = 1f)
 	{
 		if (soundsPool.TryGetValue(key, out var stream) == false)
@@ -42,12 +40,29 @@ public static partial class Pools
 		}
 		Audio2D audio = audio2DPool.Get(parent);
 		audio.Stream = stream;
+if (audio.Stream is AudioStreamMP3 mp3Stream)
+{
+	mp3Stream.Loop = false;
+}
+if (audio.Stream is AudioStreamOggVorbis oggStream)
+{
+    oggStream.Loop = false; // свойство C#
+}
+if (audio.Stream is AudioStreamWav test)
+{
+    test.LoopMode = AudioStreamWav.LoopModeEnum.Disabled; // свойство C#
+}
+// WAV для звуковых эффектов и Ogg Vorbis для музыки
 		audio.VolumeDb = volume;
         audio.PitchScale = pitch;
 		audio.OnFinishAction = () => Remove(audio);
 		audio.Finished += audio.OnFinishAction;
 		audio.Play();
 		return audio;
+	}
+    public static void LoadSound(string key, string path, LoopType loopType)
+	{
+		soundsPool[key] = GD.Load<AudioStream>(path);
 	}
 	public static void Remove(Audio2D audio) => audio2DPool.Return(audio);
 	private static Pool<Audio2D> audio2DPool = new();
@@ -76,4 +91,4 @@ public static partial class Pools
 	private static readonly PackedScene _creatureScene = GD.Load<PackedScene>("res://Scenes/Creature.tscn");
 	private static Pool<Creature> _creaturePool = new(() => _creatureScene.Instantiate<Creature>());
 */// ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-
+public enum LoopType { Not, Copy, Only }
