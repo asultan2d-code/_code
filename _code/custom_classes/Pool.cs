@@ -15,7 +15,8 @@ public class Pool<T> where T : class, IPoolable, new()
 	public T Get(Node parent = null)
 	{
 		T obj = _pool.Count > 0 ? _pool.Dequeue() : factory();
-		obj.IsInPool = false;
+		if (obj.IsInPool == true)
+			obj.IsInPool = false;
 		if (obj is Node node)
 		{
 			if (node.ProcessMode != Node.ProcessModeEnum.Inherit)

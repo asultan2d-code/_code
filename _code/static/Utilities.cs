@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Godot;
 namespace Game;
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 public static partial class Utilities
@@ -18,10 +19,12 @@ public static partial class Utilities
 		min + (float)rnd.NextDouble() * (max - min);
 	public static bool RandomBool() =>
 		RandI(2) == 0;
-	public static T RandomItem<T>(IList<T> list) =>
-		list[RandI(list.Count)];
     public static bool Chance(int percent) =>
         RandI(100) < percent;
+// ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
+	public static T RandomItem<T>(IList<T> list) =>
+		list[RandI(list.Count)];
+// ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 	public static int Clamp(int value, int min, int max) =>
 		Math.Clamp(value, min, max);
 	public static int Clamp(int value, int max) =>
@@ -30,44 +33,19 @@ public static partial class Utilities
 		Math.Clamp(value, min, max);
 	public static float Clamp(float value, float max) =>
 		Math.Clamp(value, 0, max);
+// ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
+	public static bool ValidAudioStream(AudioStream stream) => stream is AudioStreamMP3 or AudioStreamOggVorbis or AudioStreamWav;
+	public static bool StreamLooped(AudioStream stream)
+	{
+		if (stream is AudioStreamMP3 mp3) return mp3.Loop;
+		if (stream is AudioStreamOggVorbis ogg) return ogg.Loop;
+		if (stream is AudioStreamWav wav) return wav.LoopMode == AudioStreamWav.LoopModeEnum.Forward;
+		return false;
+	}
+	public static void SetLoop(AudioStream stream, bool loop = true)
+	{
+		if (stream is AudioStreamMP3 mp3) mp3.Loop = loop;
+		else if (stream is AudioStreamOggVorbis ogg) ogg.Loop = loop;
+		else if (stream is AudioStreamWav wav) wav.LoopMode = loop ? AudioStreamWav.LoopModeEnum.Forward : AudioStreamWav.LoopModeEnum.Disabled;
+	}
 }
-//    public static async Task Wait(int delay = 100) =>
-//        await Task.Delay(delay);
-//    public static int CountDoublings(int exp) =>
-//        (int)Math.Round(Math.Log2((double)exp / FIRST_LEVEL_EXP));
-//    public static Texture2D LoadItemTexture(String name, bool icon) =>
-//        ResourceLoader.Load<Texture2D>("res://Textures/Items/" + name + (icon == true ? "_i.png" : ".png"));
-
-
-
-// Для 2D – угол поворота от from к to (в радианах)
-/*public static float Angle(Vector2 from, Vector2 to) =>
-    MathF.Atan2(to.y - from.y, to.x - from.x);
-
-// Плавное движение числа к цели
-public static float MoveTowards(float current, float target, float maxDelta) =>
-    Math.Abs(target - current) <= maxDelta ? target : current + Math.Sign(target - current) * maxDelta;
-
-public static string FormatTime(float seconds, bool showHours = false)
-{
-    var ts = TimeSpan.FromSeconds(seconds);
-    return showHours ? ts.ToString(@"hh\:mm\:ss") : ts.ToString(@"mm\:ss");
-}
-
-public static void Swap<T>(ref T a, ref T b) =>
-    (a, b) = (b, a);
-
-public static bool Approximately(float a, float b, float epsilon = 1e-6f) =>
-    Math.Abs(a - b) < epsilon;
-
-public static float Lerp(float a, float b, float t) => a + (b - a) * t;
-public static float InverseLerp(float a, float b, float value) => (value - a) / (b - a);
-public static float Remap(float value, float fromMin, float fromMax, float toMin, float toMax) =>
-    Lerp(toMin, toMax, InverseLerp(fromMin, fromMax, value));
-public static float Clamp01(float value) => Clamp(value, 0f, 1f);
-
-public static bool IsIndexValid<T>(IList<T> list, int index) =>
-    index >= 0 && index < list.Count;
-public static bool IsNullOrEmpty<T>(IList<T> list) =>
-    list == null || list.Count == 0;
-*/

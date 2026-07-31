@@ -1,68 +1,77 @@
-using Godot;
 using System;
 using System.Collections.Generic;
+using Godot;
 namespace Game;
+using static Utilities;
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 public static partial class Pools
 {
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-	public static TimerCustom NewTimer(Node parent, float waitTime, Action onTimer, bool oneShot)
+	public static TimerCustom NewTimer(Node parent, float waitTime, Action onTimer)
 	{
 		TimerCustom timer = timerPool.Get(parent);
-		timer.WaitTime = waitTime;
-		timer.OneShot = oneShot;
-		timer.OnTimerAction = oneShot ? () =>
-		{
-			try
-			{
-				onTimer?.Invoke();
-			}
-			finally
-			{
-				Remove(timer);
-			}
-		} : onTimer;
-		timer.Timeout += timer.OnTimerAction;
+		timer.WaitTime = waitTime > 0 ? waitTime : 1f;
+		timer.SetTimerAction(onTimer);
 		timer.Start();
 		return timer;
 	}
 	public static void Remove(TimerCustom timer) => timerPool.Return(timer);
 	private static Pool<TimerCustom> timerPool = new();
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-// добавить не удаление для лууп аудио
-// удаление с таймером, затухание
-	public static Audio2D PlayAudio2D(Node parent, string key, float volume = 0f, float pitch = 1f)
+	public static Audio2D PlayAudio2D(Node parent, string key, float volume = 0f, float pitch = 1f,
+		Signal<EventContext> shutdownSignal = null, float shutdownTimer = 0f, float fadeTime = 3f)
 	{
 		if (soundsPool.TryGetValue(key, out var stream) == false)
 		{
-			GD.PushWarning($"Sound key '{key}' not loaded!");
+			GD.PushWarning($"Sound '{key}' not loaded!");
 			return null;
 		}
 		Audio2D audio = audio2DPool.Get(parent);
+		if (StreamLooped(stream))
+		{
+			if (shutdownSignal != null)
+				shutdownSignal.SubscribeOnce((_) => audio.StartFade(fadeTime));
+			else if (shutdownTimer > 0)
+				NewTimer(audio, shutdownTimer, () => audio.StartFade(fadeTime));
+			else
+			{
+				GD.PushWarning($"Sound '{key}' no signal/timer to stop!");
+				Remove(audio);
+				return null;
+			}
+		}
+		else
+			audio.RemoveOnFinished();
 		audio.Stream = stream;
-if (audio.Stream is AudioStreamMP3 mp3Stream)
-{
-	mp3Stream.Loop = false;
-}
-if (audio.Stream is AudioStreamOggVorbis oggStream)
-{
-    oggStream.Loop = false; // свойство C#
-}
-if (audio.Stream is AudioStreamWav test)
-{
-    test.LoopMode = AudioStreamWav.LoopModeEnum.Disabled; // свойство C#
-}
-// WAV для звуковых эффектов и Ogg Vorbis для музыки
 		audio.VolumeDb = volume;
         audio.PitchScale = pitch;
-		audio.OnFinishAction = () => Remove(audio);
-		audio.Finished += audio.OnFinishAction;
 		audio.Play();
 		return audio;
 	}
-    public static void LoadSound(string key, string path, LoopType loopType)
+	public static void LoadSound(string key, string path, LoopTypeEnum loopType = LoopTypeEnum.Not)
 	{
-		soundsPool[key] = GD.Load<AudioStream>(path);
+		AudioStream audio = GD.Load<AudioStream>(path);
+		if (ValidAudioStream(audio) == false)
+		{
+			GD.PushWarning($"Audio ('{path}') is not mp3, ogg or wav!");
+			return;
+		}
+		switch (loopType)
+		{
+			case LoopTypeEnum.Not:
+				soundsPool[key] = audio;
+				break;
+			case LoopTypeEnum.Copy:
+				soundsPool[key] = audio;
+				AudioStream loopedAudio = (AudioStream)audio.Duplicate();
+				SetLoop(loopedAudio);
+				soundsPool[key + "_loop"] = loopedAudio;
+				break;
+			case LoopTypeEnum.Only:
+				SetLoop(audio);
+				soundsPool[key + "_loop"] = audio;
+				break;
+		}
 	}
 	public static void Remove(Audio2D audio) => audio2DPool.Return(audio);
 	private static Pool<Audio2D> audio2DPool = new();
@@ -79,16 +88,4 @@ if (audio.Stream is AudioStreamWav test)
 	private static Pool<Occluder2D> occluderPool = new();
 }
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-// ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-// ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-/*	public static Creature NewCreature(string name, Node parent)
-	{
-		Creature creature = _creaturePool.Get(parent);
-		creature.Init(name);
-		return creature;
-	}
-	public static void RemoveCreature(Creature creature) => _creaturePool.Return(creature);
-	private static readonly PackedScene _creatureScene = GD.Load<PackedScene>("res://Scenes/Creature.tscn");
-	private static Pool<Creature> _creaturePool = new(() => _creatureScene.Instantiate<Creature>());
-*/// ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-public enum LoopType { Not, Copy, Only }
+public enum LoopTypeEnum { Not, Copy, Only }
