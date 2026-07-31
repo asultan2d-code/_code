@@ -7,26 +7,27 @@ using static Utilities;
 public static partial class Pools
 {
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-	public static TimerCustom NewTimer(Node parent, float waitTime, Action onTimer)
+	public static OneShotTimer NewTimer(Node parent, float waitTime, Action onTimer)
 	{
-		TimerCustom timer = timerPool.Get(parent);
+		OneShotTimer timer = timerPool.Get(parent);
 		timer.WaitTime = waitTime > 0 ? waitTime : 1f;
-		timer.SetTimerAction(onTimer);
+		timer.SetTimerAction(onTimer, () => timerPool.Return(timer));
 		timer.Start();
 		return timer;
 	}
-	public static void Remove(TimerCustom timer) => timerPool.Return(timer);
-	private static Pool<TimerCustom> timerPool = new();
+	public static void Remove(OneShotTimer timer) => timerPool.Return(timer);
+	private static Pool<OneShotTimer> timerPool = new();
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-	public static Audio2D PlayAudio2D(Node parent, string key, float volume = 0f, float pitch = 1f,
+	public static void PlayAudio2D(Node parent, string key, float volume = 0f, float pitch = 1f, int playCount = 1,
 		Signal<EventContext> shutdownSignal = null, float shutdownTimer = 0f, float fadeTime = 3f)
 	{
 		if (soundsPool.TryGetValue(key, out var stream) == false)
 		{
-			GD.PushWarning($"Sound '{key}' not loaded!");
-			return null;
+			GD.PushWarning($"Sound '{key}' not found!");
+			return;
 		}
 		Audio2D audio = audio2DPool.Get(parent);
+		audio.SetReturnAction(() => audio2DPool.Return(audio));
 		if (StreamLooped(stream))
 		{
 			if (shutdownSignal != null)
@@ -35,18 +36,16 @@ public static partial class Pools
 				NewTimer(audio, shutdownTimer, () => audio.StartFade(fadeTime));
 			else
 			{
-				GD.PushWarning($"Sound '{key}' no signal/timer to stop!");
-				Remove(audio);
-				return null;
+				GD.PushWarning($"Sound '{key}' is loopes and no signal/timer to stop!");
+				audio2DPool.Return(audio);
+				return;
 			}
 		}
-		else
-			audio.RemoveOnFinished();
+		audio.PlayCount = Clamp(playCount, 1, 100);
 		audio.Stream = stream;
-		audio.VolumeDb = volume;
-        audio.PitchScale = pitch;
+		audio.VolumeDb = Clamp(volume, -80f, 24f);
+        audio.PitchScale = Clamp(pitch, 0.1f, 4f);
 		audio.Play();
-		return audio;
 	}
 	public static void LoadSound(string key, string path, LoopTypeEnum loopType = LoopTypeEnum.Not)
 	{
@@ -73,7 +72,6 @@ public static partial class Pools
 				break;
 		}
 	}
-	public static void Remove(Audio2D audio) => audio2DPool.Return(audio);
 	private static Pool<Audio2D> audio2DPool = new();
     private static Dictionary<string, AudioStream> soundsPool = [];
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----

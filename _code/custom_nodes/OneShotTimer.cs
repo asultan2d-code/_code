@@ -2,20 +2,20 @@ using Godot;
 using System;
 namespace Game;
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-public partial class TimerCustom : Timer, IPoolable
+public partial class OneShotTimer : Timer, IPoolable
 {
-	public TimerCustom()
+	public OneShotTimer()
 	{
 		OneShot = true;
 	}
 	public bool IsInPool { get; set; } = false;
 	private Action onTimerAction;
 	private bool actionSubscribed = false;
-	public void SetTimerAction(Action action)
+	public void SetTimerAction(Action action, Action returnAction)
 	{
 		if (actionSubscribed) return;
 		actionSubscribed = true;
-		onTimerAction = action != null ? () => { try { action(); } finally { Pools.Remove(this); } } : () => Pools.Remove(this);
+		onTimerAction = action != null ? () => { try { action(); } finally { returnAction(); } } : () => returnAction();
 		Timeout += onTimerAction;
 	}
 	public void Clear()
